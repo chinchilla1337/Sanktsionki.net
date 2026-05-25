@@ -1,3 +1,6 @@
+# Собираем сырые данные, нормализует данные через offers_to_frame(), строит сводку по рынку (build_market_summary) и находим лучшие предложения (build_best_offers).
+# Кодик возвращает три таблицы: offers — все предложения, summary — агрегированная статистика, best_offers — топовые предложения
+
 from __future__ import annotations
 
 import json
