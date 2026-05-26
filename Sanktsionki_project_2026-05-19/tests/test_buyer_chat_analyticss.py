@@ -1,3 +1,4 @@
+# Данный тест проверяет, что система извлекает финансовую информацию из сообщений чата 
 from __future__ import annotations
 
 import json
@@ -9,8 +10,8 @@ from sanktsionki.services.buyer_chat_analytics import (
 )
 
 
-def test_buyer_chat_pipeline_extracts_core_metrics(tmp_path) -> None:
-    export_path = tmp_path / "buyer_chat.json"
+def test_buyer_chat_pipeline_extracts_core_metrics(tmp_path) -> None: # параметр tmp_path создает временную директорию для теста, автоматически удаляет после теста, каждый тест получает чистую папку
+    export_path = tmp_path / "buyer_chat.json" # создание тестового файла чата
     export_path.write_text(
         json.dumps(
             {
@@ -32,10 +33,10 @@ def test_buyer_chat_pipeline_extracts_core_metrics(tmp_path) -> None:
             ensure_ascii=False,
         ),
         encoding="utf-8",
-    )
+    ) # создается файл json с двумя сообщениями
 
-    messages = load_telegram_export(export_path)
-    mentions = extract_amount_mentions(messages)
+    messages = load_telegram_export(export_path) # читаем json, извлекаем все сообщения, преобразуем в DataFrame
+    mentions = extract_amount_mentions(messages) # ищем паттерны денег в тексте, определяем типы метрик (commission, delivery, customs, total), выявляем страны и бренды, возвращаем DataFrame с найденными упоминаниями
     summary = build_buyer_chat_summary(mentions)
 
     assert len(messages) == 2
