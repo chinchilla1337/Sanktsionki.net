@@ -41,5 +41,5 @@ def offers_to_frame(records: list[dict[str, object]]) -> pd.DataFrame: #спис
         ["query_label", "source_name", "price_rub", "match_score"],
         ascending=[True, True, True, False], #создаем сортировку (при равной цене - более релевантные выше (чем больше, тем лучше))
     )
-    frame.reset_index(drop=True, inplace=True) #после удаления дубликатов и сортировки индексы становятся не последовательными (5, 12, 0...). cбрасываем для красивого вывода.
+    frame.reset_index(drop=True, inplace=True) #после удаления дубликатов и сортировки индексы становятся не последовательными (5, 12, 0...), поэтому cбрасываем для красивого вывода.
     return frame
