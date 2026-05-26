@@ -1,5 +1,9 @@
-from __future__ import annotations
+# Тест проверяет три ключевые утилиты, которые используются во всех скраперах и анализаторах:
+# parse_price() - парсинг цен из строк
+# match_score() - оценка релевантности товара запросу
+# normalize_text() - приведение текста к стандартному виду
 
+from __future__ import annotations
 from sanktsionki.utils import match_score, normalize_text, parse_price
 
 
