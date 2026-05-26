@@ -1,3 +1,7 @@
+# Этот кодик парсит экспортированные чаты Telegram, находит: 1) Упоминания денег (цены, комиссии, доставка)
+# 2) Определяет типы расходов (комиссия, доставка, таможня)
+# 3) Выявляет страны и бренды
+# 4) Строит сводную статистику
 from __future__ import annotations
 
 import json
@@ -32,8 +36,7 @@ COUNTRY_HINTS = {
     "ОАЭ": ("оаэ", "uae", "dubai", "emirates"),
     "Южная Корея": ("коре", "korea", "seoul"),
 }
-
-
+#данная функция нормализует наш текст: если строка → очищает пробелы; если список → склеивает все текстовые части; если словарь → берет поле text; иначе → преобразует в строку
 def _flatten_text(value: Any) -> str:
     if isinstance(value, str):
         return clean_whitespace(value)
@@ -50,7 +53,7 @@ def _flatten_text(value: Any) -> str:
     return clean_whitespace(str(value or ""))
 
 
-def _detect_metric(text: str) -> str:
+def _detect_metric(text: str) -> str:  #определение типа расхода
     normalized = normalize_text(text)
     for metric, hints in METRIC_HINTS.items():
         if any(hint in normalized for hint in hints):
@@ -58,7 +61,7 @@ def _detect_metric(text: str) -> str:
     return "price_talk"
 
 
-def _detect_country(text: str) -> str | None:
+def _detect_country(text: str) -> str | None: #определение страны
     normalized = normalize_text(text)
     for country, hints in COUNTRY_HINTS.items():
         if any(hint in normalized for hint in hints):
@@ -66,7 +69,7 @@ def _detect_country(text: str) -> str | None:
     return None
 
 
-def load_telegram_export(path: Path) -> pd.DataFrame:
+def load_telegram_export(path: Path) -> pd.DataFrame: #загрузка одного файла
     payload = json.loads(path.read_text(encoding="utf-8"))
     rows: list[dict[str, object]] = []
     for message in payload.get("messages", []):
@@ -85,7 +88,7 @@ def load_telegram_export(path: Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def load_buyer_chat_messages(chat_dir: Path = config.BUYER_CHAT_DIR) -> pd.DataFrame:
+def load_buyer_chat_messages(chat_dir: Path = config.BUYER_CHAT_DIR) -> pd.DataFrame: #загрузка всех чатов
     if not chat_dir.exists():
         return pd.DataFrame()
     frames: list[pd.DataFrame] = []
@@ -101,7 +104,7 @@ def load_buyer_chat_messages(chat_dir: Path = config.BUYER_CHAT_DIR) -> pd.DataF
     return messages
 
 
-def extract_amount_mentions(messages: pd.DataFrame) -> pd.DataFrame:
+def extract_amount_mentions(messages: pd.DataFrame) -> pd.DataFrame: #извлекаем финансовые упоминания 
     if messages.empty:
         return pd.DataFrame()
 
@@ -162,7 +165,7 @@ def extract_amount_mentions(messages: pd.DataFrame) -> pd.DataFrame:
     return mentions
 
 
-def build_buyer_chat_summary(mentions: pd.DataFrame) -> pd.DataFrame:
+def build_buyer_chat_summary(mentions: pd.DataFrame) -> pd.DataFrame: #построение сводки 
     if mentions.empty:
         return pd.DataFrame()
     summary = (
@@ -177,11 +180,11 @@ def build_buyer_chat_summary(mentions: pd.DataFrame) -> pd.DataFrame:
         .sort_values(["mention_count", "median_rub"], ascending=[False, True])
     )
     top_countries = (
-        mentions.dropna(subset=["country_name"])
+        mentions.dropna(subset=["country_name"]) #определение топ-стран для каждой метрики
         .groupby(["metric", "country_name"], as_index=False)
-        .size()
+        .size() #считаем упоминания
         .sort_values(["metric", "size"], ascending=[True, False])
-        .drop_duplicates("metric")
+        .drop_duplicates("metric") #оставляем топ-1 на метрику
         .rename(columns={"country_name": "top_country", "size": "top_country_mentions"})
     )
     summary = summary.merge(top_countries, on="metric", how="left")
@@ -190,16 +193,16 @@ def build_buyer_chat_summary(mentions: pd.DataFrame) -> pd.DataFrame:
     return summary
 
 
-def persist_buyer_chat_outputs(
+def persist_buyer_chat_outputs( #основная функция сохранения
     messages_path: Path = config.BUYER_CHAT_MESSAGES_CSV,
     summary_path: Path = config.BUYER_CHAT_SUMMARY_CSV,
     chat_dir: Path = config.BUYER_CHAT_DIR,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    messages = load_buyer_chat_messages(chat_dir)
-    mentions = extract_amount_mentions(messages)
-    summary = build_buyer_chat_summary(mentions)
+    messages = load_buyer_chat_messages(chat_dir) #загружаем все сообщения из чатов
+    mentions = extract_amount_mentions(messages) #извлекаем упоминания денег 
+    summary = build_buyer_chat_summary(mentions) #строим сводку по метрикам 
 
-    messages_path.parent.mkdir(parents=True, exist_ok=True)
-    mentions.to_csv(messages_path, index=False, encoding="utf-8-sig")
-    summary.to_csv(summary_path, index=False, encoding="utf-8-sig")
+    messages_path.parent.mkdir(parents=True, exist_ok=True) #создаем директории (если нет)
+    mentions.to_csv(messages_path, index=False, encoding="utf-8-sig") #сохраняем csv
+    summary.to_csv(summary_path, index=False, encoding="utf-8-sig") #сохраняем csv
     return mentions, summary
