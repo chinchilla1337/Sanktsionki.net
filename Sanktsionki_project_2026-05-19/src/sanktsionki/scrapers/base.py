@@ -1,7 +1,8 @@
-from __future__ import annotations
+#создаем фреймворк для веб-скраппинга с двумя подходами к загрузке страниц: Static (BaseScraper) - использует requests для обычных HTML-страниц, Dynamic (SeleniumEdgeScraper) - запускает настоящий браузер Edge, видит Java
+from __future__ import annotations #можно использовать классы в аннотациях, даже если они еще не определены
 
-import shutil
-import tempfile
+import shutil #модуль для операций с файлами(удаление директорий)
+import tempfile #создание временных папок(для профиля браузера)
 from abc import ABC, abstractmethod
 from time import sleep
 
@@ -21,19 +22,19 @@ class BaseScraper(ABC):
 
     def __init__(self, timeout: int = 30) -> None:
         self.timeout = timeout
-        self.session = requests.Session()
-        self.session.headers.update(config.DEFAULT_HEADERS)
+        self.session = requests.Session() #переиспользуем соединение для нескольких запросов (так быстрее)
+        self.session.headers.update(config.DEFAULT_HEADERS) #добавляем стандартные заголовки, чтобы не заблокировали
 
-    @abstractmethod
+    @abstractmethod #обязательный метод для всех наследников, каждый скрапер по-свооему ищет товары
     def search(self, query: SearchQuery, limit: int = 10) -> list[ProductOffer]:
         raise NotImplementedError
 
     def close(self) -> None:
-        self.session.close()
+        self.session.close() #закрываем HTTP-сессию
 
     def _is_relevant(self, query: SearchQuery, *texts: str | None) -> float:
-        return match_score(query.label, query.brand, *texts)
-
+        return match_score(query.label, query.brand, *texts) #оценка релевантности
+#создаем объект предложения
     def _offer(
         self,
         query: SearchQuery,
@@ -53,7 +54,7 @@ class BaseScraper(ABC):
         country_name: str | None = None,
         market_scope: str | None = None,
         source_domain: str | None = None,
-    ) -> ProductOffer:
+    ) -> ProductOffer: 
         score = match_override if match_override is not None else self._is_relevant(query, title, raw_snippet)
         return ProductOffer(
             query_slug=query.slug,
@@ -78,7 +79,7 @@ class BaseScraper(ABC):
             source_domain=clean_whitespace(source_domain) or None,
         )
 
-    def _get_soup(self, url: str) -> BeautifulSoup:
+    def _get_soup(self, url: str) -> BeautifulSoup: #получаем HTML-страницу
         response = self.session.get(url, timeout=self.timeout)
         response.raise_for_status()
         return BeautifulSoup(response.text, "html.parser")
@@ -90,14 +91,14 @@ class SeleniumEdgeScraper(BaseScraper):
     def __init__(self, timeout: int = 30, page_wait_seconds: int = 5) -> None:
         super().__init__(timeout=timeout)
         self.page_wait_seconds = page_wait_seconds
-        self._driver: webdriver.Edge | None = None
-        self._profile_dir: str | None = None
+        self._driver: webdriver.Edge | None = None #экземпляр браузера Edge
+        self._profile_dir: str | None = None #временная папка для профиля браузера
 
     def _get_driver(self) -> webdriver.Edge:
         if self._driver is not None:
             return self._driver
 
-        self._profile_dir = tempfile.mkdtemp(prefix="edge-profile-")
+        self._profile_dir = tempfile.mkdtemp(prefix="edge-profile-") #создаем уникальную временную папку
         options = Options()
         options.add_argument("--headless")
         options.add_argument("--disable-gpu")
@@ -112,11 +113,11 @@ class SeleniumEdgeScraper(BaseScraper):
         return self._driver
 
     def _render_html(self, url: str) -> str:
-        driver = self._get_driver()
-        driver.get(url)
-        sleep(self.page_wait_seconds)
-        return driver.page_source
-
+        driver = self._get_driver() #Получаем или создаем браузер  
+        driver.get(url) #Загружаем URL
+        sleep(self.page_wait_seconds)  #Ждем выполнения JavaScript
+        return driver.page_source  #Получаем итоговый HTML
+#закрытие ресурсов
     def close(self) -> None:
         super().close()
         if self._driver is not None:
