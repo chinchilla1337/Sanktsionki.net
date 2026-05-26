@@ -1,3 +1,4 @@
+# Этот кодик позовляет автоматически выгружать данные в Google Sheets
 from __future__ import annotations
 
 import os
