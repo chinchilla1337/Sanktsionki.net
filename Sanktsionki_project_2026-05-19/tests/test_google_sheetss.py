@@ -1,3 +1,5 @@
+# Тест проверяет метод frame_to_rows(), который преобразует pandas DataFrame в список списков для загрузки в Google Sheets, с правильной обработкой пустых значений (None/NaN).
+
 from __future__ import annotations
 
 import pandas as pd
