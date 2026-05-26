@@ -1,12 +1,12 @@
-from __future__ import annotations
+from __future__ import annotations #позволяет использовать аннтоации типов с ссылками на еще не определенные классы
 
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus #импортируем функции для кодирования URL-спецсимволов
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup #HTML-парсер для извлечения данных из веб-страниц
 
-from sanktsionki import config
-from sanktsionki.models import ProductOffer, SearchQuery
-from sanktsionki.scrapers.base import SeleniumEdgeScraper
+from sanktsionki import config #конфигурационный файл с настройками (URL, пути)
+from sanktsionki.models import ProductOffer, SearchQuery #модели данных: ProductOffer (найденный товар), SearchQuery (поисковый запрос)
+from sanktsionki.scrapers.base import SeleniumEdgeScraper #базовый класс, использующий Selenium с браузером Edge для динамической загрузки страниц
 from sanktsionki.utils import absolute_url, parse_price
 
 
@@ -14,12 +14,12 @@ class AvitoScraper(SeleniumEdgeScraper):
     source_name = "Avito"
     source_type = "dynamic"
 
-    def search(self, query: SearchQuery, limit: int = 10) -> list[ProductOffer]:
+    def search(self, query: SearchQuery, limit: int = 10) -> list[ProductOffer]: #query - объект с текстом запроса (например, "New Balance"); limit - максимальное количество собираемых объявлений
         url = f"{config.AVITO_BASE_URL}/all/odezhda_obuv_aksessuary?q={quote_plus(query.label)}"
         soup = BeautifulSoup(self._render_html(url), "html.parser")
         offers: list[ProductOffer] = []
 
-        for item in soup.select('[data-marker="item"]'):
+        for item in soup.select('[data-marker="item"]'): # проходим по каждому товару на странице 
             title_link = item.select_one('[data-marker="item-title"]')
             price_value = item.select_one('[data-marker="item-price-value"]') or item.select_one('[data-marker="item-price"]')
             photo_link = item.select_one('[data-marker="item-photo-sliderLink"]')
@@ -28,16 +28,16 @@ class AvitoScraper(SeleniumEdgeScraper):
             seller = item.select_one('[data-marker="seller-info/summary"]')
             note = item.select_one('[data-marker="badge-title-2359"]')
             description = item.select_one('meta[itemprop="description"]')
-
-            title = title_link.get_text(" ", strip=True) if title_link else ""
-            price_rub = parse_price(price_value.get_text(" ", strip=True) if price_value else "")
-            raw_snippet = item.get_text(" ", strip=True)
+#каждая строка извлекает конкретный HTML-элемент с данными
+            title = title_link.get_text(" ", strip=True) if title_link else "" #извлекаем текст
+            price_rub = parse_price(price_value.get_text(" ", strip=True) if price_value else "") #извлекаем число
+            raw_snippet = item.get_text(" ", strip=True) #весь текст внутри карточки объявления 
             score = self._is_relevant(
                 query,
                 title,
                 description.get("content") if description else "",
                 raw_snippet,
-            )
+            ) #вызываем метод родительского класса для проверки, насколько товар соответствует запросу. возвращаем число от 0 до 1 (чем ближе к 1, тем релевантнее)
 
             if not title or price_rub is None or score < 0.5:
                 continue
@@ -60,7 +60,7 @@ class AvitoScraper(SeleniumEdgeScraper):
                     market_scope="marketplace",
                     source_domain="avito.ru",
                 )
-            )
+            ) #создаем объект ProductOffer
             if len(offers) >= limit:
                 break
 
